@@ -6,7 +6,7 @@ import { moonsData } from '../data/moons.js';
 import sunTexture from '../assets/images/sun.jpg';
 import { createPlanet, createMoon } from '../utils/index.js';
 
-const SolarSystem = ({ planetSpeeds, isPaused }) => {
+const SolarSystemss = ({ planetSpeeds, isPaused }) => {
   const mountRef = useRef(null);
   const planetsRef = useRef({});
   const sunRef = useRef(null);
@@ -32,7 +32,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
     scene.add(sun);
     sunRef.current = sun;
 
-    // Create sun glow effect (same as before)
+    // Create sun glow effect
     const vertexShader = `
         varying vec3 vNormal;
         varying vec3 vPosition;
@@ -59,7 +59,9 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
     const SGmaterial = new THREE.ShaderMaterial({
         vertexShader: vertexShader,
         fragmentShader: fragmentShader,
-        uniforms: { cameraPos: { value: camera.position } },
+        uniforms: {
+            cameraPos: { value: camera.position }
+        },
         blending: THREE.AdditiveBlending,
         depthTest: false,
         transparent: true,
@@ -71,12 +73,12 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
     glowMesh.scale.multiplyScalar(1.1);
     sun.add(glowMesh);
 
-    // Lighting setup
+    // Add point light at the Sun's position
     const sunLight = new THREE.PointLight(0xffffff, 2000, 200);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     scene.add(sunLight);
-    
+
     const ambientLight = new THREE.AmbientLight(0x444444);
     scene.add(ambientLight);
 
@@ -90,7 +92,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
 
     planetsRef.current = planets;
 
-    // Add Moon to Earth (if Earth exists)
+    // Add Moon to Earth
     let earth = planets["Earth"];
     if (earth) {
         const moon = createMoon(earth, moonsData[0]);
@@ -106,7 +108,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
       if (SGmaterialRef.current) {
         SGmaterialRef.current.uniforms.cameraPos.value.copy(camera.position);
       }
-
+      
       controls.update();
 
       if (!isPaused) {
@@ -115,7 +117,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
           const planetInfo = planetsData.find(p => p.name === planetName);
           const planetIndex = planetsData.findIndex(p => p.name === planetName);
           const planet = planetsRef.current[planetName];
-
+          
           // Apply speed multiplier from controls
           const speedMultiplier = planetSpeeds[planetIndex] || 1;
           const angle = planetInfo.orbitSpeed * speedMultiplier * Date.now() * 0.001;
@@ -165,7 +167,12 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
         renderer.dispose();
       }
     };
-  }, [planetSpeeds, isPaused]);  // Dependency array to track changes in planetSpeeds and isPaused
+  }, []);
+
+  // Update animation when speeds or pause state changes
+  useEffect(() => {
+    // Speed changes are handled in the animation loop
+  }, [planetSpeeds, isPaused]);
 
   function updatePlanetRotation(planetMesh, sunPosition) {
     const directionToSun = new THREE.Vector3().subVectors(sunPosition, planetMesh.position);
@@ -187,4 +194,4 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
   return <div ref={mountRef} style={{ width: '100%', height: '100vh' }} />;
 };
 
-export default SolarSystem;
+export default SolarSystemss;

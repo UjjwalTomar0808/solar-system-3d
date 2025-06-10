@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import stars from '../assets/images/stars.jpg';
 
 let scene, camera, renderer, controls, asteroidBelt;
@@ -7,9 +7,9 @@ let scene, camera, renderer, controls, asteroidBelt;
 function createScene() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const highestPlanetY = 100;
-    camera.position.set(0, highestPlanetY, 0);
+    camera.position.set(0, 100, 0);
     camera.lookAt(new THREE.Vector3(0, 0, 0));
+
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -17,9 +17,7 @@ function createScene() {
     renderer.gammaOutput = true;
     renderer.gammaFactor = 2.2;
 
-    addStarBackground();
-
-    // Initialize OrbitControls
+    // Initialize OrbitControls after renderer setup
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.25;
@@ -34,8 +32,9 @@ function createScene() {
         RIGHT: THREE.MOUSE.PAN
     };
 
+    addStarBackground();
     asteroidBelt = createAsteroidBelt();
-    
+
     return renderer.domElement;
 }
 
@@ -78,5 +77,23 @@ function createAsteroidBelt() {
     scene.add(asteroidBelt);
     return asteroidBelt;
 }
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Update controls
+    controls.update();
+
+    // Render the scene
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+});
 
 export { scene, camera, renderer, controls, createScene };

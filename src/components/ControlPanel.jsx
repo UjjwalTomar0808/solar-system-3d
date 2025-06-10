@@ -9,7 +9,12 @@ const ControlPanel = ({ planetSpeeds, setPlanetSpeeds, isPaused, setIsPaused }) 
   };
 
   const resetSpeeds = () => {
-    setPlanetSpeeds(planetsData.map(() => 1));
+    setPlanetSpeeds(new Array(8).fill(1));
+  };
+
+  const handlePauseClick = (e) => {
+    e.preventDefault(); // Prevent default behavior (page reload)
+    setIsPaused(!isPaused);
   };
 
   return (
@@ -19,7 +24,7 @@ const ControlPanel = ({ planetSpeeds, setPlanetSpeeds, isPaused, setIsPaused }) 
         <div className="main-controls">
           <button 
             className={`pause-btn ${isPaused ? 'paused' : ''}`}
-            onClick={() => setIsPaused(!isPaused)}
+            onClick={handlePauseClick}
           >
             {isPaused ? '▶️ Resume' : '⏸️ Pause'}
           </button>
@@ -43,16 +48,14 @@ const ControlPanel = ({ planetSpeeds, setPlanetSpeeds, isPaused, setIsPaused }) 
               </div>
             </div>
             <div className="speed-control">
-              <label htmlFor={`speed-${index}`}>
-                Speed: {planetSpeeds[index]?.toFixed(1)}x
-              </label>
+              <label htmlFor={`speed-${index}`}>Speed: {planetSpeeds[index].toFixed(1)}x</label>
               <input
                 id={`speed-${index}`}
                 type="range"
                 min="0"
                 max="5"
                 step="0.1"
-                value={planetSpeeds[index] || 1}
+                value={planetSpeeds[index]}
                 onChange={(e) => handleSpeedChange(index, e.target.value)}
                 className="speed-slider"
               />
