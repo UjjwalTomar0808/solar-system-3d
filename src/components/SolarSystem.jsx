@@ -12,94 +12,97 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
   const sunRef = useRef(null);
   const frameRef = useRef(null);
   const SGmaterialRef = useRef(null);
-  const baseSpeedsRef = useRef([]);
+
+  // Refs to keep track of latest props inside animation loop
+  const planetSpeedsRef = useRef(planetSpeeds);
+  const isPausedRef = useRef(isPaused);
+
+  // Update refs on prop change
+  useEffect(() => {
+    planetSpeedsRef.current = planetSpeeds;
+  }, [planetSpeeds]);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // Store base speeds for calculations
-    baseSpeedsRef.current = planetsData.map(planet => planet.orbitSpeed);
-
-    // Create scene and get renderer element
     const rendererElement = createScene();
     mountRef.current.appendChild(rendererElement);
 
     // Add Sun
-    let textureLoader = new THREE.TextureLoader();
-    let sunGeometry = new THREE.SphereGeometry(8, 64, 64);
-    let sunMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load(sunTexture) });
+    const textureLoader = new THREE.TextureLoader();
+    const sunGeometry = new THREE.SphereGeometry(8, 64, 64);
+    const sunMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load(sunTexture) });
     const sun = new THREE.Mesh(sunGeometry, sunMaterial);
     scene.add(sun);
     sunRef.current = sun;
 
-    // Create sun glow effect (same as before)
+    // Add glow effect
     const vertexShader = `
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        
-        void main() {
-            vNormal = normalize(normalMatrix * normal);
-            vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
     `;
-
+    
     const fragmentShader = `
-        uniform vec3 cameraPos;
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-        
-        void main() {
-            vec3 viewVector = normalize(cameraPos - vPosition);
-            float intensity = pow(0.5 - dot(vNormal, viewVector), 5.0);
-            gl_FragColor = vec4(1.0, 0.9, 0.5, intensity);
-        }
+      uniform vec3 cameraPos;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      void main() {
+        vec3 viewVector = normalize(cameraPos - vPosition);
+        float intensity = pow(0.5 - dot(vNormal, viewVector), 5.0);
+        gl_FragColor = vec4(1.0, 0.9, 0.5, intensity);
+      }
     `;
-
     const SGmaterial = new THREE.ShaderMaterial({
-        vertexShader: vertexShader,
-        fragmentShader: fragmentShader,
-        uniforms: { cameraPos: { value: camera.position } },
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        transparent: true,
-        side: THREE.BackSide
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        cameraPos: { value: camera.position }
+      },
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      transparent: true,
+      side: THREE.BackSide
     });
     SGmaterialRef.current = SGmaterial;
-
     const glowMesh = new THREE.Mesh(sun.geometry.clone(), SGmaterial);
     glowMesh.scale.multiplyScalar(1.1);
     sun.add(glowMesh);
 
-    // Lighting setup
+    // Lighting
     const sunLight = new THREE.PointLight(0xffffff, 2000, 200);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     scene.add(sunLight);
-    
-    const ambientLight = new THREE.AmbientLight(0x444444);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0x444444));
 
-    // Add Planets and their Orbits
+    // Planets
     const planets = {};
-    planetsData.forEach(planetData => {
-        const planet = createPlanet(scene, planetData);
-        planets[planetData.name] = planet;
-        createOrbit(planetData.distance, planetData.orbitColor);
+    planetsData.forEach((planetData) => {
+      const planet = createPlanet(scene, planetData);
+      planets[planetData.name] = planet;
+      createOrbit(planetData.distance, planetData.orbitColor);
     });
-
     planetsRef.current = planets;
 
-    // Add Moon to Earth (if Earth exists)
-    let earth = planets["Earth"];
+    // Moon
+    const earth = planets["Earth"];
     if (earth) {
-        const moon = createMoon(earth, moonsData[0]);
-        earth.moon = moon;
+      const moon = createMoon(earth, moonsData[0]);
+      earth.moon = moon;
     }
 
     camera.position.z = 120;
 
-    // Animation loop
+    // Animation
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
 
@@ -109,21 +112,19 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
 
       controls.update();
 
-      if (!isPaused) {
-        // Animate planets with speed controls
+      if (!isPausedRef.current) {
+        const now = Date.now();
+
         for (const planetName in planetsRef.current) {
-          const planetInfo = planetsData.find(p => p.name === planetName);
+          const planetData = planetsData.find(p => p.name === planetName);
           const planetIndex = planetsData.findIndex(p => p.name === planetName);
+          const speedMultiplier = planetSpeedsRef.current[planetIndex] || 1;
+          const angle = planetData.orbitSpeed * speedMultiplier * now * 0.001;
+
           const planet = planetsRef.current[planetName];
+          planet.mesh.position.x = Math.cos(angle) * planetData.distance * 10;
+          planet.mesh.position.z = Math.sin(angle) * planetData.distance * 10;
 
-          // Apply speed multiplier from controls
-          const speedMultiplier = planetSpeeds[planetIndex] || 1;
-          const angle = planetInfo.orbitSpeed * speedMultiplier * Date.now() * 0.001;
-          
-          planet.mesh.position.x = Math.cos(angle) * planetInfo.distance * 10;
-          planet.mesh.position.z = Math.sin(angle) * planetInfo.distance * 10;
-
-          // Update label scale based on distance to camera
           const distance = camera.position.distanceTo(planet.mesh.position);
           const scale = THREE.MathUtils.clamp(distance / 5, 5, 50);
           planet.label.scale.set(scale, scale / 2, 1);
@@ -131,9 +132,8 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
           updatePlanetRotation(planet.mesh, sunRef.current.position);
         }
 
-        // Animate Moon
         const earth = planetsRef.current["Earth"];
-        if (earth && earth.moon) {
+        if (earth?.moon) {
           earth.moon.pivot.rotation.y += moonsData[0].orbitSpeed;
         }
       }
@@ -143,7 +143,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
 
     animate();
 
-    // Handle window resize
+    // Handle resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -152,20 +152,15 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
 
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current);
-      }
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
       window.removeEventListener('resize', handleResize);
       if (renderer && mountRef.current && mountRef.current.contains(renderer.domElement)) {
         mountRef.current.removeChild(renderer.domElement);
       }
-      if (renderer) {
-        renderer.dispose();
-      }
+      if (renderer) renderer.dispose();
     };
-  }, [planetSpeeds, isPaused]);  // Dependency array to track changes in planetSpeeds and isPaused
+  }, []);
 
   function updatePlanetRotation(planetMesh, sunPosition) {
     const directionToSun = new THREE.Vector3().subVectors(sunPosition, planetMesh.position);
