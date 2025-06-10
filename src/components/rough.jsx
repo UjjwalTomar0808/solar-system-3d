@@ -13,11 +13,11 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
   const frameRef = useRef(null);
   const SGmaterialRef = useRef(null);
 
+  // Refs to keep track of latest props inside animation loop
   const planetSpeedsRef = useRef(planetSpeeds);
   const isPausedRef = useRef(isPaused);
-  const revolutionAnglesRef = useRef({});
-  const lastTimestampRef = useRef(Date.now());
 
+  // Update refs on prop change
   useEffect(() => {
     planetSpeedsRef.current = planetSpeeds;
   }, [planetSpeeds]);
@@ -50,7 +50,7 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `;
-
+    
     const fragmentShader = `
       uniform vec3 cameraPos;
       varying vec3 vNormal;
@@ -102,57 +102,60 @@ const SolarSystem = ({ planetSpeeds, isPaused }) => {
 
     camera.position.z = 120;
 
-    const animate = () => {
-      frameRef.current = requestAnimationFrame(animate);
+    // Animation
+  const animate = () => {
+    frameRef.current = requestAnimationFrame(animate);
 
-      const now = Date.now();
-      const delta = (now - lastTimestampRef.current) / 1000;
-      lastTimestampRef.current = now;
+    const now = Date.now();
+    const delta = (now - lastTimestampRef.current) / 1000; // seconds
+    lastTimestampRef.current = now;
 
-      if (SGmaterialRef.current) {
-        SGmaterialRef.current.uniforms.cameraPos.value.copy(camera.position);
-      }
+    if (SGmaterialRef.current) {
+      SGmaterialRef.current.uniforms.cameraPos.value.copy(camera.position);
+    }
 
-      controls.update();
+    controls.update();
 
-      if (!isPausedRef.current) {
-        for (const planetName in planetsRef.current) {
-          const planetData = planetsData.find(p => p.name === planetName);
-          const planetIndex = planetsData.findIndex(p => p.name === planetName);
-          const speedMultiplier = planetSpeedsRef.current[planetIndex] || 1;
+    if (!isPausedRef.current) {
+      for (const planetName in planetsRef.current) {
+        const planetData = planetsData.find(p => p.name === planetName);
+        const planetIndex = planetsData.findIndex(p => p.name === planetName);
+        const speedMultiplier = planetSpeedsRef.current[planetIndex] || 1;
 
-          // Initialize angle if not already
-          if (revolutionAnglesRef.current[planetName] === undefined) {
-            revolutionAnglesRef.current[planetName] = 0;
-          }
-
-          // Update angle using delta time and speed
-          revolutionAnglesRef.current[planetName] += planetData.orbitSpeed * speedMultiplier * delta;
-
-          const angle = revolutionAnglesRef.current[planetName];
-          const planet = planetsRef.current[planetName];
-
-          planet.mesh.position.x = Math.cos(angle) * planetData.distance * 10;
-          planet.mesh.position.z = Math.sin(angle) * planetData.distance * 10;
-
-          const distance = camera.position.distanceTo(planet.mesh.position);
-          const scale = THREE.MathUtils.clamp(distance / 5, 5, 50);
-          planet.label.scale.set(scale, scale / 2, 1);
-
-          updatePlanetRotation(planet.mesh, sunRef.current.position);
+        // Initialize angle if not already
+        if (revolutionAnglesRef.current[planetName] === undefined) {
+          revolutionAnglesRef.current[planetName] = 0;
         }
 
-        const earth = planetsRef.current["Earth"];
-        if (earth?.moon) {
-          earth.moon.pivot.rotation.y += moonsData[0].orbitSpeed * delta;
-        }
+        // Increment revolution angle based on orbitSpeed and speedMultiplier
+        revolutionAnglesRef.current[planetName] += planetData.orbitSpeed * speedMultiplier * delta;
+
+        const angle = revolutionAnglesRef.current[planetName];
+
+        const planet = planetsRef.current[planetName];
+        planet.mesh.position.x = Math.cos(angle) * planetData.distance * 10;
+        planet.mesh.position.z = Math.sin(angle) * planetData.distance * 10;
+
+        const distance = camera.position.distanceTo(planet.mesh.position);
+        const scale = THREE.MathUtils.clamp(distance / 5, 5, 50);
+        planet.label.scale.set(scale, scale / 2, 1);
+
+        updatePlanetRotation(planet.mesh, sunRef.current.position);
       }
 
-      renderer.render(scene, camera);
-    };
+      const earth = planetsRef.current["Earth"];
+      if (earth?.moon) {
+        earth.moon.pivot.rotation.y += moonsData[0].orbitSpeed * delta;
+      }
+    }
+
+    renderer.render(scene, camera);
+  };
+
 
     animate();
 
+    // Handle resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
