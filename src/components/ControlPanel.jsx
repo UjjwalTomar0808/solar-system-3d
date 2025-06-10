@@ -9,7 +9,7 @@ const ControlPanel = ({ planetSpeeds, setPlanetSpeeds, isPaused, setIsPaused }) 
   };
 
   const resetSpeeds = () => {
-    setPlanetSpeeds(new Array(8).fill(1));
+    setPlanetSpeeds(planetsData.map(() => 1));
   };
 
   return (
@@ -43,14 +43,16 @@ const ControlPanel = ({ planetSpeeds, setPlanetSpeeds, isPaused, setIsPaused }) 
               </div>
             </div>
             <div className="speed-control">
-              <label htmlFor={`speed-${index}`}>Speed: {planetSpeeds[index].toFixed(1)}x</label>
+              <label htmlFor={`speed-${index}`}>
+                Speed: {planetSpeeds[index]?.toFixed(1)}x
+              </label>
               <input
                 id={`speed-${index}`}
                 type="range"
                 min="0"
                 max="5"
                 step="0.1"
-                value={planetSpeeds[index]}
+                value={planetSpeeds[index] || 1}
                 onChange={(e) => handleSpeedChange(index, e.target.value)}
                 className="speed-slider"
               />
